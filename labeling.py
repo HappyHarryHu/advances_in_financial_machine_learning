@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 from multiprocessing import Pool, cpu_count, RLock
 from tqdm import tqdm
+from datetime import timedelta
 
 
 def _triple_barrier(close, events, ptSl, molecule, line):
@@ -27,10 +28,12 @@ def _triple_barrier(close, events, ptSl, molecule, line):
     return out
 
 
-def triple_barrier(data, t1, rolling, side, ptSl, core=cpu_count(), meta_labelling=False):
+def triple_barrier(data, t1, side, ptSl, core=cpu_count(), min_ret=0):
     events = pd.DataFrame(index=data.index)
-    events['t1'] = events.index.shift(freq=t1)
-    events['trgt'] = data['close'].pct_change(freq=t1).rolling(rolling).std()
+    events['t1'] = events.index.shift(freq=timedelta(hours=t1))
+    log_ret = np.log(data['close'].shift(
+        freq=timedelta(hours=-t1))) - np.log(data['close'])
+    events['trgt'] = log_ret.rolling(f'{t1*100}H').std()
     events['side'] = side
     with Pool(core, initargs=(RLock(),), initializer=tqdm.set_lock) as pool:
         l = events.shape[0] // core
@@ -42,15 +45,17 @@ def triple_barrier(data, t1, rolling, side, ptSl, core=cpu_count(), meta_labelli
     t1 = pd.concat(result).min(axis=1)
     t1 = t1[t1.isin(data.index)]
     trgt = events.loc[t1.index, 'trgt']
-    ret = pd.Series(data.loc[t1, 'close'].values / data.loc[t1.index,
-                    'close'].values - 1, index=t1.index) * events.loc[t1.index, 'side']
-    bin = (ret > 0) if meta_labelling else np.sign(ret)
+    ret = pd.Series(np.log(data.loc[t1, 'close'].values / data.loc[t1.index,
+                    'close'].values), index=t1.index) * events.loc[t1.index, 'side']
+    bin = ret > min_ret
     return pd.concat({'t1': t1, 'trgt': trgt, 'ret': ret, 'bin': bin}, axis=1)
 
 
-data = pd.read_csv(
-    '~/crypto_data/exchange_data/combined/BTCSPOT_60.csv', index_col=0, parse_dates=True)
-ptSl = (1, 1)
-
-result = triple_barrier(data, '1H', '1D', 1, ptSl)
-result.to_csv('trible_barrier.csv')
+if __name__ == '__main__':
+    ohlcv = pd.read_csv('BTCSPOT_300.csv', index_col=0, parse_dates=True)
+    side_labeling = triple_barrier(ohlcv, 1, 1, (3, 3))
+    side_labeling.to_csv('side_labeling.csv')
+    long_labeling = triple_barrier(ohlcv, 1, 1, (3, 1), min_ret=0.00065)
+    long_labeling.to_csv('long_labeling.csv')
+    short_labeling = triple_barrier(ohlcv, 1, -1, (3, 1), min_ret=0.00065)
+    short_labeling.to_csv('short_labeling.csv')

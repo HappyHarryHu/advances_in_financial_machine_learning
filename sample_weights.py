@@ -69,15 +69,15 @@ def time_decay(uni, c=1):
     return weights
 
 
-events = pd.read_csv('triple_barrier.csv', index_col=0,
-                     parse_dates=True).iloc[:1000]
-events['t1'] = pd.to_datetime(events['t1'])
-ind_matrix, uniqueness = uniqueness_matrix(events, '1min')
-ind_matrix.to_csv('ind_matrix.csv')
-uniqueness.to_csv('uniqueness.csv')
-# ind_matrix = pd.read_csv('ind_matrix.csv', index_col=0, parse_dates=True)
-seq_boost_sample = sequential_bootstrap(ind_matrix)
-seq_boost_sample.to_csv('seq_boost_sample.csv')
-data = pd.read_csv(
-    '~/crypto_data/exchange_data/combined/BTCSPOT_60.csv', index_col=0, parse_dates=True)
-weights = sample_weights(data['close'], ind_matrix)
+if __name__ == '__main__':
+    events = pd.read_csv('triple_barrier.csv', index_col=0,
+                        parse_dates=True).iloc[:1000]
+    events['t1'] = pd.to_datetime(events['t1'])
+    ind_matrix, uniqueness = uniqueness_matrix(events, '1min')
+    ind_matrix.to_csv('ind_matrix.csv')
+    uniqueness.to_csv('uniqueness.csv')
+    # ind_matrix = pd.read_csv('ind_matrix.csv', index_col=0, parse_dates=True)
+    seq_boost_sample = sequential_bootstrap(ind_matrix)
+    seq_boost_sample.to_csv('seq_boost_sample.csv')
+    data = pd.read_csv('BTCSPOT_300.csv', index_col=0, parse_dates=True)
+    weights = sample_weights(data['close'], ind_matrix)
