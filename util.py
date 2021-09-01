@@ -19,7 +19,7 @@ def train_test_split(data, train, test, holding):
     return index_ls
 
 
-def gen_dataset(data):    
+def gen_dataset(data):
     # Momentum Signals [price, volume, combined]
     def _mmt_sigs(close, volume):
         def _momentum(x):
